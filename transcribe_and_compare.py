@@ -17,7 +17,7 @@ for index, row in df.iterrows():
     audio_path = os.path.join(audio_folder, row["filename"])
 
     if not os.path.exists(audio_path):
-        print(f"❌ Missing file: {audio_path}")
+        print(f" Missing file: {audio_path}")
         continue
 
     # Run transcription
@@ -34,4 +34,4 @@ for index, row in df.iterrows():
 
 # Save to CSV
 pd.DataFrame(results).to_csv("whisper_transcription_results.csv", index=False)
-print("✅ Transcription complete. Results saved to whisper_transcription_results.csv")
+print("Transcription complete. Results saved to whisper_transcription_results.csv")
