@@ -2,8 +2,6 @@ import os
 import base64
 import tempfile
 import streamlit as st
-import re
-from indic_transliteration.sanscript import transliterate, ITRANS, DEVANAGARI
 
 st.set_page_config(page_title="Bilingual Subtitle Generator", page_icon="📝", layout="wide")
 
@@ -11,30 +9,6 @@ st.title("Bilingual Subtitle Generator")
 st.write("Upload a video file. The app will generate subtitles in Nepali (देवनागरी) and English, and show them while you play the video.")
 
 uploaded = st.file_uploader("Upload your video", type=["mp4"], accept_multiple_files=False)
-
-NEPALI_COMMON = {
-    "mero", "timro", "timi", "ma", "tapai", "bhaneko", "vayena", "cha", "xa", "bhayo", "huncha", "parcha", "garna", "lagxa", "ramro", "sathi", "namaste", "dhanyabad", "ghar", "bholi", "aaja", "hajur"
-    # Add more Nepali words as needed
-}
-
-def is_nepali_word(word):
-    return word.lower() in NEPALI_COMMON or word.lower().endswith(("cha", "xa", "nu", "ko", "le", "la", "na", "yo", "re", "bhayo", "vayena", "lagxa", "parxa", "garnu", "garna"))
-
-def roman_to_devanagari(word):
-    try:
-        return transliterate(word, ITRANS, DEVANAGARI)
-    except Exception:
-        return word
-
-def mix_bilingual_line(text):
-    tokens = re.findall(r"([\w\-']+|[^\w\s])", text)
-    out = []
-    for t in tokens:
-        if is_nepali_word(t):
-            out.append(roman_to_devanagari(t))
-        else:
-            out.append(t)
-    return "".join(out)
 
 def to_srt_time(t: float) -> str:
     h = int(t // 3600)
@@ -49,7 +23,7 @@ def build_webvtt(segments: list) -> str:
         start = to_srt_time(seg["start"]).replace(",", ".")
         end = to_srt_time(seg["end"]).replace(",", ".")
         lines.append(f"{start} --> {end}")
-        lines.append(seg["bilingual"])
+        lines.append(seg["text"])
         lines.append("")
     return "\n".join(lines)
 
@@ -83,17 +57,13 @@ if uploaded:
         import whisper
         st.info("Transcribing your video. Please wait...")
         model = whisper.load_model("medium")
-        result = model.transcribe(tmp_path, language="en")  # <--- IMPORTANT: use "en"
+        result = model.transcribe(tmp_path, language="ne")  # <--- Use Nepali model!
         raw_segments = result.get("segments", [])
         segments = merge_segments(raw_segments, max_chars=80)
 
-        # Post-process for bilingual output
-        for ch in segments:
-            ch["bilingual"] = mix_bilingual_line(ch["text"])
-
         st.subheader("Subtitles")
         for ch in segments:
-            st.markdown(f"{ch['bilingual']}\n---")
+            st.markdown(f"{ch['text']}\n---")
 
         vtt_text = build_webvtt(segments)
         vtt_b64 = base64.b64encode(vtt_text.encode("utf-8")).decode("ascii")
